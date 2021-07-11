@@ -12,8 +12,7 @@ File Format is new line every address, like below:
 
 ### Help
 ```
-
-./proxychecker --help
+❯ ./proxychecker --help
 NAME:
    proxychecker - fight the loneliness!
 
@@ -24,16 +23,17 @@ COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --url value   check proxy list from url with extension file is text (default: "url")
-   --file value  check proxy from file (default: "list.txt")
-   -c value      checker ip proxy (default: "checker")
+   --url value   check proxy list from url with extension file is text
+   --file value  check proxy from file
+   --ip value    checker ip proxy
+   --out value   output file (default: "active_proxy.txt")
    --help, -h    show help (default: false)
 ```
 
 
 ### Check IP Proxy
 ```
-./proxychecker --c "192.189.10.9:8080"
+./proxychecker --ip "192.189.10.9:8080"
 ```
 
 ### Check IP Proxy from file
