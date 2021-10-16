@@ -12,9 +12,15 @@ import (
 	"time"
 
 	"github.com/muhfaris/request"
+	"golang.org/x/net/proxy"
 )
 
-const timeout15 = 15
+const (
+	timeout15 = 15
+
+	// TestURL is target test url
+	TestURL = "https://www.reddit.com"
+)
 
 // ProxyResp is response of proxy check
 type ProxyResp struct {
@@ -23,16 +29,44 @@ type ProxyResp struct {
 }
 
 // ProxyChecker is check proxy ip
-func ProxyChecker(addr string, c chan ProxyResp) error {
+func ProxyChecker(addr string, c chan ProxyResp, sock, target string) error {
 	start := time.Now()
 	var timeout = time.Duration(timeout15 * time.Second)
-	URLProxy := &url.URL{Host: addr}
-	client := &http.Client{
-		Transport: &http.Transport{Proxy: http.ProxyURL(URLProxy)},
-		Timeout:   timeout,
+
+	var client = &http.Client{}
+	switch sock {
+	case "sock5":
+		// create a socks5 dialer
+		dialer, err := proxy.SOCKS5("tcp", addr, nil, proxy.Direct)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "can't connect to the proxy:", err)
+			os.Exit(1)
+		}
+
+		client = &http.Client{
+			Transport: &http.Transport{
+				Dial: dialer.Dial,
+			},
+		}
+
+	case "sock4":
+
+	default:
+		URLProxy := &url.URL{Host: addr}
+		client = &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(URLProxy),
+			},
+			Timeout: timeout,
+		}
+
 	}
 
-	resp, err := client.Get("https://www.reddit.com/")
+	if target == "" {
+		target = TestURL
+	}
+
+	resp, err := client.Get(target)
 	if err != nil {
 		c <- ProxyResp{Addr: addr, Time: -1}
 		return err
@@ -44,14 +78,14 @@ func ProxyChecker(addr string, c chan ProxyResp) error {
 	return nil
 }
 
-func checkProxyFromIP(addr string) {
+func checkProxyFromIP(addr, sock, target string) {
 	if addr == "" {
 		fmt.Printf("error address is empty")
 		return
 	}
 
 	respChan := make(chan ProxyResp)
-	go ProxyChecker(addr, respChan)
+	go ProxyChecker(addr, respChan, sock, target)
 	for {
 		fmt.Printf("trying to check ip proxy: %s\n", addr)
 		r := <-respChan
@@ -65,7 +99,7 @@ func checkProxyFromIP(addr string) {
 	}
 }
 
-func checkProxyFromURL(url, outfile string) error {
+func checkProxyFromURL(url, outfile, sock, target string) error {
 	resp := request.Get(
 		&request.Config{
 			URL: url,
@@ -83,7 +117,7 @@ func checkProxyFromURL(url, outfile string) error {
 			ip, port := addrs[0], addrs[1]
 		*/
 
-		go ProxyChecker(addr, respChan)
+		go ProxyChecker(addr, respChan, sock, target)
 	}
 
 	var proxies []ProxyResp
@@ -117,7 +151,7 @@ func createfile(data []ProxyResp, outfile string) {
 	file.Close()
 }
 
-func checkProxyFromFile(filename, outfile string) {
+func checkProxyFromFile(filename, outfile, sock, target string) {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		fmt.Printf("error read file %s, %v", filename, err)
@@ -132,7 +166,7 @@ func checkProxyFromFile(filename, outfile string) {
 			ip, port := addrs[0], addrs[1]
 		*/
 
-		go ProxyChecker(addr, respChan)
+		go ProxyChecker(addr, respChan, sock, target)
 	}
 
 	var proxies []ProxyResp
